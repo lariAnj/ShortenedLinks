@@ -8,6 +8,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import un.links.shortenedlinks.dto.ShortLinkCreationResult;
 import un.links.shortenedlinks.exception.ExpiredLinkException;
+import un.links.shortenedlinks.exception.GlobalRateLimitException;
 import un.links.shortenedlinks.exception.LinkNotFoundException;
 import un.links.shortenedlinks.exception.RateLimitException;
 import un.links.shortenedlinks.model.Link;
@@ -32,24 +33,33 @@ public class LinkService {
     private final SecureRandom secureRandom = new SecureRandom();
     private final LinkRepo linkRepo;
     private final RateLimiter rateLimiter;
+    private final GlobalRateLimiter globalRateLimiter;
 
     @Transactional
     public ShortLinkCreationResult createShortLink(String fullLink, String ip) {
-        if (!rateLimiter.isAllowed(ip)) {
-            throw new RateLimitException("Too many requests for ip " + ip);
+        String permitValue = globalRateLimiter.tryAcquire();
+        if (permitValue == null) {
+            throw new GlobalRateLimitException("Service is busy. Too many link generations at a time. Try later.");
         }
-        return linkRepo.findLinkByFullLink(fullLink)
-                .map(link -> {
-                    if (!isExpired(link)) {
-                        return new ShortLinkCreationResult(link, ShortLinkSource.EXISTED);
-                    }
-                    Link regenerated = regenerateExpiredLink(link);
-                    return new ShortLinkCreationResult(regenerated, ShortLinkSource.CREATED);
-                })
-                .orElseGet(() -> {
-                    Link created = generateNewShortLinkWithRetry(fullLink);
-                    return new ShortLinkCreationResult(created, ShortLinkSource.CREATED);
-                });
+        try {
+            if (!rateLimiter.isAllowed(ip)) {
+                throw new RateLimitException("Too many requests for ip " + ip);
+            }
+            return linkRepo.findLinkByFullLink(fullLink)
+                    .map(link -> {
+                        if (!isExpired(link)) {
+                            return new ShortLinkCreationResult(link, ShortLinkSource.EXISTED);
+                        }
+                        Link regenerated = regenerateExpiredLink(link);
+                        return new ShortLinkCreationResult(regenerated, ShortLinkSource.CREATED);
+                    })
+                    .orElseGet(() -> {
+                        Link created = generateNewShortLinkWithRetry(fullLink);
+                        return new ShortLinkCreationResult(created, ShortLinkSource.CREATED);
+                    });
+        } finally {
+            globalRateLimiter.free(permitValue);
+        }
     }
 
     public Link getFullLink(String shortLink) {
