@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import un.links.shortenedlinks.dto.ShortLinkCreationResult;
+import un.links.shortenedlinks.exception.ExpiredLinkException;
+import un.links.shortenedlinks.exception.LinkNotFoundException;
 import un.links.shortenedlinks.model.Link;
 import un.links.shortenedlinks.model.ShortLinkSource;
 import un.links.shortenedlinks.repository.LinkRepo;
@@ -14,7 +16,6 @@ import un.links.shortenedlinks.repository.LinkRepo;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.NoSuchElementException;
 
 @Service
 @Slf4j
@@ -33,7 +34,6 @@ public class LinkService {
     @Transactional
     public ShortLinkCreationResult createShortLink(String fullLink) {
         return linkRepo.findLinkByFullLink(fullLink)
-//                .filter(link -> !isExpired(link))
                 .map(link -> {
                     if (!isExpired(link)) {
                         return new ShortLinkCreationResult(link, ShortLinkSource.EXISTED);
@@ -47,11 +47,11 @@ public class LinkService {
                 });
     }
 
-    public Link getFullLink(String shortLink) throws IllegalStateException {
+    public Link getFullLink(String shortLink) {
         Link link = linkRepo.findLinkByShortLink(shortLink)
-                .orElseThrow(() -> new NoSuchElementException("Link not found."));
+                .orElseThrow(() -> new LinkNotFoundException("Link not found."));
         if (isExpired(link)) {
-            throw new IllegalStateException("The link has expired.");
+            throw new ExpiredLinkException("The link has expired.");
         }
         return link;
     }
@@ -69,8 +69,8 @@ public class LinkService {
                 log.warn("Collision detected while regenerating shortLink, attempt={}", attempt);
             }
         }
-
-        throw new IllegalStateException("Failed to regenerate short link");
+        log.error("Unable to regenerate shortLink for fullLink={}", link.getFullLink());
+        throw new IllegalStateException("Failed to regenerate shortLink");
     }
 
     private Link generateNewShortLinkWithRetry(String fullLink) {
@@ -88,6 +88,7 @@ public class LinkService {
             }
         }
         // If after all attempts the link wasn't received
+        log.error("Unable to generate shortLink for fullLink={}", fullLink);
         throw new IllegalStateException("Failed to generate unique shortLink.");
     }
 

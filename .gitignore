@@ -19,6 +19,10 @@ bin/
 
 .env
 
+*.log
+logs/
+*.log.*
+
 ### IntelliJ IDEA ###
 .idea
 *.iws
