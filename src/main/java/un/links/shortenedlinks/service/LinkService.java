@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import un.links.shortenedlinks.dto.ShortLinkCreationResult;
 import un.links.shortenedlinks.exception.ExpiredLinkException;
 import un.links.shortenedlinks.exception.LinkNotFoundException;
+import un.links.shortenedlinks.exception.RateLimitException;
 import un.links.shortenedlinks.model.Link;
 import un.links.shortenedlinks.model.ShortLinkSource;
 import un.links.shortenedlinks.repository.LinkRepo;
@@ -30,9 +31,13 @@ public class LinkService {
 
     private final SecureRandom secureRandom = new SecureRandom();
     private final LinkRepo linkRepo;
+    private final RateLimiter rateLimiter;
 
     @Transactional
-    public ShortLinkCreationResult createShortLink(String fullLink) {
+    public ShortLinkCreationResult createShortLink(String fullLink, String ip) {
+        if (!rateLimiter.isAllowed(ip)) {
+            throw new RateLimitException("Too many requests for ip " + ip);
+        }
         return linkRepo.findLinkByFullLink(fullLink)
                 .map(link -> {
                     if (!isExpired(link)) {

@@ -1,5 +1,6 @@
 package un.links.shortenedlinks.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpHeaders;
@@ -26,8 +27,9 @@ public class LinkController {
     }
 
     @PostMapping("/shorten")
-    public ResponseEntity<ShortLinkCreationResponse> create(@RequestBody @Valid ShortLinkCreationRequest request) {
-        ShortLinkCreationResult result = linkService.createShortLink(request.getFullLink());
+    public ResponseEntity<ShortLinkCreationResponse> create(@RequestBody @Valid ShortLinkCreationRequest request, HttpServletRequest httpServletRequest) {
+        String ip = getClientIp(httpServletRequest);
+        ShortLinkCreationResult result = linkService.createShortLink(request.getFullLink(), ip);
         HttpStatus status = result.source() == ShortLinkSource.CREATED ?
                 HttpStatus.CREATED :
                 HttpStatus.OK;
@@ -46,5 +48,9 @@ public class LinkController {
         HttpHeaders headers = new HttpHeaders();
         headers.setLocation(URI.create(fullLink));
         return new ResponseEntity<>(headers, HttpStatus.MOVED_PERMANENTLY);
+    }
+
+    private String getClientIp(HttpServletRequest httpServletRequest) {
+        return httpServletRequest.getRemoteAddr();
     }
 }

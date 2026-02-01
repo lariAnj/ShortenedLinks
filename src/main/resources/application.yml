@@ -19,10 +19,17 @@ spring:
         format_sql: true
   jackson:
     time-zone: UTC
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
-
+# Link shortening properties
 link:
   ttl-minutes: 10
+  rate-limit:
+    max-requests: 100
+    window: 1m
 
 logging:
   file:
