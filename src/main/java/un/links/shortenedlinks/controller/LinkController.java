@@ -47,7 +47,7 @@ public class LinkController {
         String fullLink = linkService.getFullLink(shortLink).getFullLink();
         HttpHeaders headers = new HttpHeaders();
         headers.setLocation(URI.create(fullLink));
-        return new ResponseEntity<>(headers, HttpStatus.MOVED_PERMANENTLY);
+        return new ResponseEntity<>(headers, HttpStatus.FOUND);
     }
 
     private String getClientIp(HttpServletRequest httpServletRequest) {
