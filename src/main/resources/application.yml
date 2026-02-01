@@ -32,6 +32,13 @@ link:
     window: 1m
     max-requests-global: 100
 
+# Swagger/OpenAPI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 logging:
   file:
     name: logs/app.log
