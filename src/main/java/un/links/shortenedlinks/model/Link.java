@@ -26,7 +26,7 @@ public class Link {
     @Column(name = "full_link", nullable = false, length = 2048)
     private String fullLink;
 
-    @Column(name = "short_name", nullable = false)
+    @Column(name = "short_link", nullable = false)
     private String shortLink;
 
     @Column(nullable = false)
